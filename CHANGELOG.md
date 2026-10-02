@@ -8,23 +8,10 @@ Version scheme: `XX.Y.ZZ` (Major.Minor.Patch)
 - **Y** (Minor): medium updates / new features
 - **XX** (Major): large breaking changes
 
-## [1.4.1] — 2026-10-02
-
-### Fixed
-- Single-clicking a folder's expander arrow in the tree did nothing
-  (Linux-only). Two independent causes: (1) the lazy tree filled
-  children on `row-expanded` and removed the placeholder FIRST, so the
-  row hit zero children mid-expand and GTK abandoned the expansion —
-  now fills on `test-expand-row` and removes the placeholder last (the
-  NextZip/JSON-Viewer lazy-tree rules); (2) level-0 arrows sat flush
-  against the host dock divider, whose enlarged invisible grab zone
-  swallowed clicks on them — the tree is now inset 8 px from the
-  panel's left edge. Collapse via the ▼ arrow works again as a result.
-- Env-gated diagnostics: NPP_FD_DEBUG=1 traces tree expansion.
-
 ## [1.4.0] — 2026-10-02
 
-First Linux release — a full port of Finder.macos 1.4.0 to GTK4:
+First Linux release — a full port of Finder.macos 1.4.0 to GTK4
+(the version number stays in lockstep with the macOS plugin):
 
 - Folder tree (lazy-loading GtkTreeView) + file list (GtkColumnView with
   Name/Size/Modified columns and striped rows), toolbar with root
@@ -40,6 +27,12 @@ First Linux release — a full port of Finder.macos 1.4.0 to GTK4:
   (`finder-plugin-prefs.json`: lastRootPath, favoritePaths,
   showHiddenFiles, didShowPanelOnFirstRun).
 - German/English UI strings, language detected from the host at load.
+
+Linux-specific hardening in this release: the lazy folder tree fills on
+`test-expand-row` and removes its placeholder only after the real rows
+are in (an earlier build abandoned the expansion mid-click), and the
+tree is inset 8 px so the expander arrows sit clear of the host dock
+divider's grab zone. `NPP_FD_DEBUG=1` traces tree expansion.
 
 Platform mapping vs macOS: "Reveal in Finder" → "Show in File Manager"
 (freedesktop FileManager1 D-Bus, fallback opens the folder); "Open in

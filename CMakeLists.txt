@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 # Keep PROJECT_VERSION in sync with the macOS port's plugin version
 # (FINDER_PLUGIN_VERSION in src/FinderPlugin.cpp).
-project(Finder VERSION 1.4.1 LANGUAGES CXX)
+project(Finder VERSION 1.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

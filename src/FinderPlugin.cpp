@@ -21,7 +21,7 @@
  * On every change, bump this AND the version line in README.md, and add
  * an entry to CHANGELOG.md. Kept in lockstep with the macOS plugin.
  * ───────────────────────────────────────────────────────────────────────── */
-#define FINDER_PLUGIN_VERSION "1.4.1"
+#define FINDER_PLUGIN_VERSION "1.4.0"
 
 #include <gtk/gtk.h>
 #include <string.h>
