@@ -230,7 +230,13 @@ static void tree_fill_children(FinderPanel *p, GtkTreeIter *parent,
 }
 
 /* If `iter`'s children are still the lazy placeholder, replace them with
- * the real subdirectories. Safe to call repeatedly. */
+ * the real subdirectories. Safe to call repeatedly.
+ *
+ * NextZip/JSON-Viewer's two hard-won lazy-tree rules apply verbatim
+ * (PORTING_NOTES): append the REAL rows before removing the placeholder
+ * — dropping the row to zero children mid-expand makes the view abandon
+ * the expansion (the "clicking > does nothing" bug) — and populate from
+ * "test-expand-row", which fires BEFORE the view expands. */
 static void tree_ensure_children(FinderPanel *p, GtkTreeIter *iter)
 {
     GtkTreeModel *m = GTK_TREE_MODEL(p->tree_store);
@@ -240,20 +246,47 @@ static void tree_ensure_children(FinderPanel *p, GtkTreeIter *iter)
     gtk_tree_model_get(m, &child, TREE_COL_PLACEHOLDER, &placeholder, -1);
     if (!placeholder) return;
 
-    while (gtk_tree_model_iter_children(m, &child, iter))
-        gtk_tree_store_remove(p->tree_store, &child);
-
     gchar *dir = NULL;
     gtk_tree_model_get(m, iter, TREE_COL_PATH, &dir, -1);
-    if (dir) tree_fill_children(p, iter, dir);
+    if (dir) tree_fill_children(p, iter, dir);   /* appended AFTER the placeholder */
     g_free(dir);
+
+    /* Only now drop the placeholder row(s) — never zero children. */
+    if (gtk_tree_model_iter_children(m, &child, iter)) {
+        while (TRUE) {
+            gboolean ph = FALSE;
+            gtk_tree_model_get(m, &child, TREE_COL_PLACEHOLDER, &ph, -1);
+            if (ph) {
+                if (!gtk_tree_store_remove(p->tree_store, &child)) break;
+            } else if (!gtk_tree_model_iter_next(m, &child)) {
+                break;
+            }
+        }
+    }
 }
 
-static void on_tree_row_expanded(GtkTreeView *tv, GtkTreeIter *iter,
-                                 GtkTreePath *path, gpointer user)
+/* Env-gated diagnostics (NPP_FD_DEBUG=1) — the standard gated-trace
+ * pattern; costs one g_getenv per event when off. */
+static gboolean fd_debug(void)
+{
+    static int on = -1;
+    if (on < 0) on = g_getenv("NPP_FD_DEBUG") ? 1 : 0;
+    return on == 1;
+}
+
+static gboolean on_tree_test_expand_row(GtkTreeView *tv, GtkTreeIter *iter,
+                                        GtkTreePath *path, gpointer user)
 {
     (void)tv; (void)path;
+    if (fd_debug()) {
+        gchar *dir = NULL;
+        gtk_tree_model_get(GTK_TREE_MODEL(((FinderPanel *)user)->tree_store),
+                           iter, TREE_COL_PATH, &dir, -1);
+        g_message("[Finder] test-expand-row: %s", dir ? dir : "?");
+        g_free(dir);
+    }
     tree_ensure_children((FinderPanel *)user, iter);
+    return FALSE;   /* allow the expansion */
 }
 
 static void reload_tree(FinderPanel *p)
@@ -1366,8 +1399,8 @@ FinderPanel *finder_panel_new(const FinderPanelCallbacks *cb)
         gtk_tree_view_column_add_attribute(col, txt, "text", TREE_COL_NAME);
         gtk_tree_view_append_column(GTK_TREE_VIEW(p->tree_view), col);
     }
-    g_signal_connect(p->tree_view, "row-expanded",
-                     G_CALLBACK(on_tree_row_expanded), p);
+    g_signal_connect(p->tree_view, "test-expand-row",
+                     G_CALLBACK(on_tree_test_expand_row), p);
     g_signal_connect(p->tree_view, "row-activated",
                      G_CALLBACK(on_tree_row_activated), p);
     g_signal_connect(gtk_tree_view_get_selection(GTK_TREE_VIEW(p->tree_view)),
@@ -1382,6 +1415,13 @@ FinderPanel *finder_panel_new(const FinderPanelCallbacks *cb)
     GtkWidget *tree_scroll = gtk_scrolled_window_new();
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(tree_scroll),
                                   p->tree_view);
+    /* Inset the tree from the panel's left edge: the HOST docks this
+     * panel beside a GtkPaned whose divider has an enlarged invisible
+     * grab zone that extends a few px into the panel — without the
+     * margin, level-0 expander arrows sit inside that zone and single
+     * clicks on them are swallowed by the divider (verified with the
+     * NPP_FD_DEBUG trace: no test-expand-row for edge clicks). */
+    gtk_widget_set_margin_start(tree_scroll, 8);
     gtk_widget_set_size_request(tree_scroll, 70, -1);
     gtk_paned_set_start_child(GTK_PANED(p->paned), tree_scroll);
     gtk_paned_set_shrink_start_child(GTK_PANED(p->paned), FALSE);

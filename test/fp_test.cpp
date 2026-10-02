@@ -215,6 +215,47 @@ int main(int argc, char **argv)
     pump(150);
     CHECK(list_count(g_captured_panel) == 4, "hide-hidden filters again");
 
+    // expander-click path: expanding a placeholder-backed row must STICK.
+    // gtk_tree_view_expand_row goes through "test-expand-row" exactly like
+    // the user's > click; the NextZip lazy-tree rule (fill BEFORE removing
+    // the placeholder) is what keeps the view from abandoning it.
+    {
+        GtkWidget *tv = find_by_type(g_captured_panel, GTK_TYPE_TREE_VIEW);
+        GtkTreeModel *tm = gtk_tree_view_get_model(GTK_TREE_VIEW(tv));
+        GtkTreeIter it;
+        gboolean found_alpha = FALSE;
+        if (gtk_tree_model_get_iter_first(tm, &it)) {
+            do {
+                gchar *p = NULL;
+                gtk_tree_model_get(tm, &it, 2, &p, -1);
+                if (p && g_str_has_suffix(p, "/alpha")) found_alpha = TRUE;
+                g_free(p);
+            } while (!found_alpha && gtk_tree_model_iter_next(tm, &it));
+        }
+        CHECK(found_alpha, "tree has the alpha row");
+        if (found_alpha) {
+            GtkTreePath *tp = gtk_tree_model_get_path(tm, &it);
+            gtk_tree_view_expand_row(GTK_TREE_VIEW(tv), tp, FALSE);
+            pump(100);
+            CHECK(gtk_tree_view_row_expanded(GTK_TREE_VIEW(tv), tp),
+                  "expander expansion STICKS (lazy fill order)");
+            GtkTreeIter child;
+            gboolean real_child = FALSE;
+            if (gtk_tree_model_iter_children(tm, &child, &it)) {
+                gchar *cp = NULL;
+                gtk_tree_model_get(tm, &child, 2, &cp, -1);
+                real_child = cp && g_str_has_suffix(cp, "/nested");
+                g_free(cp);
+            }
+            CHECK(real_child, "expanded row shows real children");
+            // and collapsing works again
+            gtk_tree_view_collapse_row(GTK_TREE_VIEW(tv), tp);
+            CHECK(!gtk_tree_view_row_expanded(GTK_TREE_VIEW(tv), tp),
+                  "collapse works after expand");
+            gtk_tree_path_free(tp);
+        }
+    }
+
     // locate current file: deep inside alpha/nested
     g_current_file = deep;
     funcs[1].pFunc();   // Locate Current File in Finder Panel

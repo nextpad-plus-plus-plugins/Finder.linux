@@ -1,6 +1,6 @@
 # Finder — Nextpad++ Linux Plugin
 
-**Version:** 1.4.0 — see [CHANGELOG.md](CHANGELOG.md) for the version history.
+**Version:** 1.4.1 — see [CHANGELOG.md](CHANGELOG.md) for the version history.
 
 A sidebar panel for Nextpad++ (Linux) that shows a folder tree + file list
 of the real filesystem and offers file-manager-style actions (show in file
