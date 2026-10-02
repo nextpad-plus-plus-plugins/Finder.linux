@@ -1,0 +1,6 @@
+build/
+docs/
+build-x86/
+*.o
+*.so
+.DS_Store
